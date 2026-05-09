@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -58,6 +60,30 @@ func run() error {
 	}
 
 	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func cg() error {
+	cgroups := "/sys/fs/cgroup/"
+	containers := filepath.Join(cgroups, "containers")
+	err := os.Mkdir(containers, 0755)
+
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	if err = os.WriteFile(filepath.Join(containers, "pids.max"), []byte("20"), 0700); err != nil {
+		return err
+	}
+
+	if err = os.WriteFile(filepath.Join(containers, "notify_on_release"), []byte("1"), 0700); err != nil {
+		return err
+	}
+
+	if err = os.WriteFile(filepath.Join(containers, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0700); err != nil {
 		return err
 	}
 
