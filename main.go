@@ -27,6 +27,10 @@ func child() error {
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
 	syscall.Sethostname([]byte("container"))
+	syscall.Chroot("./ubuntu-fs")
+	syscall.Chdir("/")
+	syscall.Mount("proc", "proc", "proc", 0, "")
+	defer syscall.Unmount("/proc", 0)
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -49,7 +53,8 @@ func run() error {
 	cmd.Stderr = os.Stderr
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: syscall.CLONE_NEWUTS,
+		Cloneflags:   syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
+		Unshareflags: syscall.CLONE_NEWNS,
 	}
 
 	if err := cmd.Run(); err != nil {
