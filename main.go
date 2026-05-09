@@ -20,7 +20,7 @@ var (
 )
 
 func child() error {
-	Info.Printf("Running %s as %d...\n", strings.Join(os.Args[2:], " "), os.Getpid())
+	Info.Printf("Running %s as user %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getpid())
 
 	if err := cg(); err != nil {
 
@@ -58,7 +58,7 @@ func child() error {
 }
 
 func run() error {
-	Info.Printf("Running %s as %d...\n", strings.Join(os.Args[2:], " "), os.Getpid())
+	Info.Printf("Running %s as user %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getpid())
 
 	cmd := exec.Command("/proc/self/exe", append([]string{"child"}, os.Args[2:]...)...)
 
@@ -67,8 +67,13 @@ func run() error {
 	cmd.Stderr = os.Stderr
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags:   syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
+		Cloneflags:   syscall.CLONE_NEWUSER | syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
 		Unshareflags: syscall.CLONE_NEWNS,
+		UidMappings: []syscall.SysProcIDMap{{
+			ContainerID: 0,
+			HostID:      1000,
+			Size:        1,
+		}},
 	}
 
 	if err := cmd.Run(); err != nil {
