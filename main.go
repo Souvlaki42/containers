@@ -35,8 +35,12 @@ func (lim CGLimit) cpu_limit() string {
 	}
 }
 
-func child() error {
+func print_running_as() {
 	Info.Printf("Running %s as user %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getpid())
+}
+
+func child() error {
+	print_running_as()
 
 	if err := setup_cgroup("/sys/fs/cgroup/containers"); err != nil {
 		return err
@@ -76,7 +80,7 @@ func child() error {
 }
 
 func run() error {
-	Info.Printf("Running %s as user %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getpid())
+	print_running_as()
 
 	cmd := exec.Command("/proc/self/exe", append([]string{"child"}, os.Args[2:]...)...)
 
@@ -84,12 +88,14 @@ func run() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	userId := os.Getuid()
+
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags:   syscall.CLONE_NEWUSER | syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
 		Unshareflags: syscall.CLONE_NEWNS,
 		UidMappings: []syscall.SysProcIDMap{{
 			ContainerID: 0,
-			HostID:      1000,
+			HostID:      userId,
 			Size:        1,
 		}},
 	}
