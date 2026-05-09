@@ -23,22 +23,34 @@ func child() error {
 	Info.Printf("Running %s as %d...\n", strings.Join(os.Args[2:], " "), os.Getpid())
 
 	if err := cg(); err != nil {
-		return err
-	}
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
-	syscall.Sethostname([]byte("container"))
-	syscall.Chroot("./ubuntu-fs")
-	syscall.Chdir("/")
-	syscall.Mount("proc", "proc", "proc", 0, "")
-	defer syscall.Unmount("/proc", 0)
+	if err := syscall.Sethostname([]byte("container")); err != nil {
+		return err
+	}
+
+	if err := syscall.Chroot("./ubuntu-fs"); err != nil {
+		return err
+	}
+
+	if err := syscall.Chdir("/"); err != nil {
+		return err
+	}
+
+	if err := syscall.Mount("proc", "proc", "proc", 0, ""); err != nil {
+		return err
+	}
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	if err := syscall.Unmount("/proc", 0); err != nil {
 		return err
 	}
 
