@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -18,6 +19,21 @@ var (
 	Warn  *log.Logger = log.New(os.Stdout, "[WARN]  ", 0)
 	Error *log.Logger = log.New(os.Stderr, "[ERROR]  ", 0)
 )
+
+type CGLimit struct {
+	memory     uint64 // in bytes
+	proc       int
+	cpu_period int // in microseconds
+	cpu_quota  int
+}
+
+func (lim CGLimit) cpu_limit() string {
+	if lim.cpu_quota == 0 {
+		return fmt.Sprintf("max %d", lim.cpu_period)
+	} else {
+		return fmt.Sprintf("%d %d", lim.cpu_quota, lim.cpu_period)
+	}
+}
 
 func child() error {
 	Info.Printf("Running %s as user %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getpid())
@@ -92,15 +108,32 @@ func setup_cgroup(cgroupPath string) error {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(containers, "pids.max"), []byte("20"), 0700); err != nil {
+	var info syscall.Sysinfo_t
+
+	if err := syscall.Sysinfo(&info); err != nil {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(containers, "notify_on_release"), []byte("1"), 0700); err != nil {
+	cgLimit := CGLimit{
+		memory:     info.Totalram * uint64(info.Unit),
+		proc:       20,
+		cpu_period: 100000,
+		cpu_quota:  0,
+	}
+
+	if err = os.WriteFile(filepath.Join(cgroupPath, "memory.max"), []byte(strconv.FormatUint(cgLimit.memory, 10)), 0644); err != nil {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(containers, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0700); err != nil {
+	if err = os.WriteFile(filepath.Join(cgroupPath, "cpu.max"), []byte(cgLimit.cpu_limit()), 0644); err != nil {
+		return err
+	}
+
+	if err = os.WriteFile(filepath.Join(cgroupPath, "pids.max"), []byte(strconv.Itoa(cgLimit.proc)), 0644); err != nil {
+		return err
+	}
+
+	if err = os.WriteFile(filepath.Join(cgroupPath, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
 		return err
 	}
 
