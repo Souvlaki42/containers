@@ -22,7 +22,9 @@ var (
 func child() error {
 	Info.Printf("Running %s as user %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getpid())
 
-	if err := cg(); err != nil {
+	if err := setup_cgroup("/sys/fs/cgroup/containers"); err != nil {
+		return err
+	}
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
@@ -83,10 +85,8 @@ func run() error {
 	return nil
 }
 
-func cg() error {
-	cgroups := "/sys/fs/cgroup/"
-	containers := filepath.Join(cgroups, "containers")
-	err := os.Mkdir(containers, 0755)
+func setup_cgroup(cgroupPath string) error {
+	err := os.MkdirAll(cgroupPath, 0755)
 
 	if err != nil && !os.IsExist(err) {
 		return err
