@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -11,8 +11,18 @@ import (
 // docker/podman run <image> <cmd> <...params>
 // go run main.go run <image> <cmd> <...params>
 
-func child() {
-	fmt.Printf("Running %s...\n", strings.Join(os.Args[2:], " "))
+var (
+	Info  *log.Logger = log.New(os.Stdout, "[INFO]  ", 0)
+	Warn  *log.Logger = log.New(os.Stdout, "[WARN]  ", 0)
+	Error *log.Logger = log.New(os.Stderr, "[ERROR]  ", 0)
+)
+
+func child() error {
+	Info.Printf("Running %s as %d...\n", strings.Join(os.Args[2:], " "), os.Getpid())
+
+	if err := cg(); err != nil {
+		return err
+	}
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
@@ -22,15 +32,15 @@ func child() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Run()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if err := cmd.Run(); err != nil {
+		return err
 	}
+
+	return nil
 }
 
-func run() {
-	fmt.Printf("Running %s...\n", strings.Join(os.Args[2:], " "))
+func run() error {
+	Info.Printf("Running %s as %d...\n", strings.Join(os.Args[2:], " "), os.Getpid())
 
 	cmd := exec.Command("/proc/self/exe", append([]string{"child"}, os.Args[2:]...)...)
 
@@ -42,26 +52,32 @@ func run() {
 		Cloneflags: syscall.CLONE_NEWUTS,
 	}
 
-	err := cmd.Run()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if err := cmd.Run(); err != nil {
+		return err
 	}
+
+	return nil
 }
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Printf("Usage: %s run <image> <cmd> <...params>\n", os.Args[0])
-		os.Exit(0)
+		Error.Printf("Usage: %s run <image> <cmd> <...params>\n", os.Args[0])
+		os.Exit(1)
 	}
 
+	var err error = nil
 	switch os.Args[1] {
 	case "run":
-		run()
+		err = run()
 	case "child":
-		child()
+		err = child()
 	default:
-		fmt.Println("Uknown command")
+		Error.Printf("Unknown command: %s\n", os.Args[1])
 		os.Exit(2)
+	}
+
+	if err != nil {
+		Error.Println(err)
+		os.Exit(1)
 	}
 }
