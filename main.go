@@ -221,6 +221,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	defer func() {
+		// FIX: replace with proper inotify polling and cleanup
+		// Original used cgroup v1's `notify-on-release`
+		if err = os.Remove(container.cgroup_path); err != nil {
+			Error.Println(err)
+			os.Exit(1)
+		}
+
+		if err = os.Remove(container.cgroup_store); err != nil {
+			Error.Println(err)
+			os.Exit(1)
+		}
+
+		if err != nil {
+			Error.Println(err)
+			os.Exit(1)
+		}
+	}()
+
 	switch os.Args[1] {
 	case "run":
 		if err = parent(container); err != nil {
@@ -237,17 +256,4 @@ func main() {
 		os.Exit(2)
 	}
 
-	defer func() {
-		// FIX: replace with proper inotify polling and cleanup
-		// Original used cgroup v1's `notify-on-release`
-		if err = os.Remove(container.cgroup_path); err != nil {
-			Error.Println(err)
-			os.Exit(1)
-		}
-
-		if err != nil {
-			Error.Println(err)
-			os.Exit(1)
-		}
-	}()
 }
