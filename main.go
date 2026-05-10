@@ -28,11 +28,12 @@ type CGLimit struct {
 }
 
 type Container struct {
-	host_user   int
-	uuid        string
-	cgroup_root string
-	cgroup_path string
-	limits      *CGLimit
+	host_user    int
+	uuid         string
+	cgroup_root  string
+	cgroup_store string
+	cgroup_path  string
+	limits       *CGLimit
 }
 
 func (lim CGLimit) cpu_limit() string {
@@ -71,7 +72,9 @@ func create_container() (*Container, error) {
 	cgroup_root := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service", uid, uid)
 	container.cgroup_root = cgroup_root
 
-	container.cgroup_path = filepath.Join(cgroup_root, "containers", container.uuid)
+	container.cgroup_store = filepath.Join(cgroup_root, "containers")
+
+	container.cgroup_path = filepath.Join(container.cgroup_store, container.uuid)
 
 	return container, nil
 }
@@ -101,13 +104,12 @@ func setup_cgroup(container *Container) error {
 		return err
 	}
 
-	containers_path := filepath.Join(container.cgroup_root, "containers")
-	err = os.MkdirAll(containers_path, 0755)
+	err = os.MkdirAll(container.cgroup_store, 0755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(containers_path, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(container.cgroup_store, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
 		return err
 	}
 
