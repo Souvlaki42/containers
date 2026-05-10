@@ -130,7 +130,7 @@ func child(container *Container) error {
 		return err
 	}
 
-	if err := syscall.Chroot("./ubuntu-fs"); err != nil {
+	if err := syscall.Chroot("./root-fs"); err != nil {
 		return err
 	}
 
