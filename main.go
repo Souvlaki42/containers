@@ -201,16 +201,31 @@ func main() {
 
 	switch os.Args[1] {
 	case "run":
-		err = parent(container)
+		if err = parent(container); err != nil {
+			Error.Println(err)
+			os.Exit(1)
+		}
 	case "child":
-		err = child(container)
+		if err = child(container); err != nil {
+			Error.Println(err)
+			os.Exit(1)
+		}
 	default:
 		Error.Printf("Unknown command: %s\n", os.Args[1])
 		os.Exit(2)
 	}
 
-	if err != nil {
-		Error.Println(err)
-		os.Exit(1)
-	}
+	defer func() {
+		// FIX: replace with proper inotify polling and cleanup
+		// Original used cgroup v1's `notify-on-release`
+		if err = os.Remove(container.cgroup_path); err != nil {
+			Error.Println(err)
+			os.Exit(1)
+		}
+
+		if err != nil {
+			Error.Println(err)
+			os.Exit(1)
+		}
+	}()
 }
