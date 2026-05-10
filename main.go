@@ -122,6 +122,10 @@ func child(container *Container) error {
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
+	if err := os.WriteFile(filepath.Join(container.cgroup_path, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+		return err
+	}
+
 	if err := syscall.Sethostname(container.uuid); err != nil {
 		return err
 	}
