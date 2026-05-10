@@ -81,11 +81,22 @@ func print_running_as() {
 }
 
 func setup_cgroup(container *Container) error {
+	init_path := filepath.Join(container.cgroup_root, "init.scope")
+
+	err := os.MkdirAll(init_path, 0755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	if err = os.WriteFile(filepath.Join(init_path, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+		return err
+	}
+
 	if err := os.WriteFile(filepath.Join(container.cgroup_root, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
 		return err
 	}
 
-	err := os.MkdirAll(container.cgroup_path, 0755)
+	err = os.MkdirAll(container.cgroup_path, 0755)
 
 	if err != nil && !os.IsExist(err) {
 		return err
@@ -100,10 +111,6 @@ func setup_cgroup(container *Container) error {
 	}
 
 	if err = os.WriteFile(filepath.Join(container.cgroup_path, "pids.max"), []byte(strconv.Itoa(container.limits.proc)), 0644); err != nil {
-		return err
-	}
-
-	if err = os.WriteFile(filepath.Join(container.cgroup_path, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
 		return err
 	}
 
