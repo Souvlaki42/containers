@@ -81,9 +81,14 @@ func print_running_as() {
 }
 
 func setup_cgroup(container *Container) error {
+	err := os.MkdirAll(container.cgroup_root, 0755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
 	init_path := filepath.Join(container.cgroup_root, "init.scope")
 
-	err := os.MkdirAll(init_path, 0755)
+	err = os.MkdirAll(init_path, 0755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -93,6 +98,16 @@ func setup_cgroup(container *Container) error {
 	}
 
 	if err := os.WriteFile(filepath.Join(container.cgroup_root, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
+		return err
+	}
+
+	containers_path := filepath.Join(container.cgroup_root, "containers")
+	err = os.MkdirAll(containers_path, 0755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	if err := os.WriteFile(filepath.Join(containers_path, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
 		return err
 	}
 
