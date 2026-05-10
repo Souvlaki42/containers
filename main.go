@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -134,8 +135,14 @@ func setup_cgroup(container *Container) error {
 	return nil
 }
 
-func child(container *Container) error {
+func child() error {
 	print_running_as()
+
+	readPipe := os.NewFile(3, "read-pipe")
+	os.NewFile(4, "write-pipe")
+
+	var container Container
+	json.NewDecoder(readPipe).Decode(&container)
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
@@ -174,51 +181,22 @@ func child(container *Container) error {
 	return nil
 }
 
-func parent(container *Container) error {
+func parent() error {
 	print_running_as()
 
-	if err := setup_cgroup(container); err != nil {
+	_, childWriter, err := os.Pipe()
+	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("/proc/self/exe", append([]string{"child"}, os.Args[2:]...)...)
-
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags:   syscall.CLONE_NEWUSER | syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
-		Unshareflags: syscall.CLONE_NEWNS,
-		UidMappings: []syscall.SysProcIDMap{{
-			ContainerID: 0,
-			HostID:      container.host_user,
-			Size:        1,
-		}},
-		GidMappings: []syscall.SysProcIDMap{{
-			ContainerID: 0,
-			HostID:      os.Getgid(),
-			Size:        1,
-		}},
-	}
-
-	if err := cmd.Run(); err != nil {
+	childReader, parentWriter, err := os.Pipe()
+	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func main() {
-	if len(os.Args) < 2 {
-		Error.Printf("Usage: %s run <image> <cmd> <...params>\n", os.Args[0])
-		os.Exit(1)
 	}
 
 	container, err := create_container()
 	if err != nil {
-		Error.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	defer func() {
@@ -240,14 +218,62 @@ func main() {
 		}
 	}()
 
+	if err := setup_cgroup(container); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("/proc/self/exe", append([]string{"child"}, os.Args[2:]...)...)
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	cmd.ExtraFiles = []*os.File{childWriter, childReader}
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags:   syscall.CLONE_NEWUSER | syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
+		Unshareflags: syscall.CLONE_NEWNS,
+		UidMappings: []syscall.SysProcIDMap{{
+			ContainerID: 0,
+			HostID:      container.host_user,
+			Size:        1,
+		}},
+		GidMappings: []syscall.SysProcIDMap{{
+			ContainerID: 0,
+			HostID:      os.Getgid(),
+			Size:        1,
+		}},
+	}
+
+	if err := json.NewEncoder(parentWriter).Encode(container); err != nil {
+		return err
+	}
+
+	if err := parentWriter.Close(); err != nil {
+		return err
+	}
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		Error.Printf("Usage: %s run <image> <cmd> <...params>\n", os.Args[0])
+		os.Exit(1)
+	}
+
 	switch os.Args[1] {
 	case "run":
-		if err = parent(container); err != nil {
+		if err := parent(); err != nil {
 			Error.Println(err)
 			os.Exit(1)
 		}
 	case "child":
-		if err = child(container); err != nil {
+		if err := child(); err != nil {
 			Error.Println(err)
 			os.Exit(1)
 		}
