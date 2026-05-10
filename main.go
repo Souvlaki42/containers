@@ -146,7 +146,7 @@ func child(container *Container) error {
 	return nil
 }
 
-func run(container *Container) error {
+func parent(container *Container) error {
 	print_running_as()
 
 	if err := setup_cgroup(container); err != nil {
@@ -164,7 +164,7 @@ func run(container *Container) error {
 		Unshareflags: syscall.CLONE_NEWNS,
 		UidMappings: []syscall.SysProcIDMap{{
 			ContainerID: 0,
-			HostID:      os.Getuid(),
+			HostID:      container.host_user,
 			Size:        1,
 		}},
 	}
@@ -190,7 +190,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "run":
-		err = run(container)
+		err = parent(container)
 	case "child":
 		err = child(container)
 	default:
