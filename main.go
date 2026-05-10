@@ -77,7 +77,7 @@ func create_container() (*Container, error) {
 }
 
 func print_running_as() {
-	Info.Printf("Running %s as user %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getpid())
+	Info.Printf("Running %s as user %d on group %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getgid(), os.Getpid())
 }
 
 func setup_cgroup(container *Container) error {
@@ -191,6 +191,11 @@ func parent(container *Container) error {
 		UidMappings: []syscall.SysProcIDMap{{
 			ContainerID: 0,
 			HostID:      container.host_user,
+			Size:        1,
+		}},
+		GidMappings: []syscall.SysProcIDMap{{
+			ContainerID: 0,
+			HostID:      os.Getgid(),
 			Size:        1,
 		}},
 	}
