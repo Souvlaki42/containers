@@ -29,7 +29,7 @@ type CGLimit struct {
 
 type Container struct {
 	host_user   int
-	uuid        []byte
+	uuid        string
 	cgroup_root string
 	cgroup_path string
 	limits      *CGLimit
@@ -63,7 +63,7 @@ func create_container() (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	container.uuid = uuid
+	container.uuid = strings.TrimSpace(string(uuid))
 
 	uid := os.Getuid()
 	container.host_user = uid
@@ -71,7 +71,7 @@ func create_container() (*Container, error) {
 	cgroup_root := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service", uid, uid)
 	container.cgroup_root = cgroup_root
 
-	container.cgroup_path = filepath.Join(cgroup_root, "containers", string(uuid))
+	container.cgroup_path = filepath.Join(cgroup_root, "containers", container.uuid)
 
 	return container, nil
 }
@@ -141,7 +141,7 @@ func child(container *Container) error {
 		return err
 	}
 
-	if err := syscall.Sethostname(container.uuid); err != nil {
+	if err := syscall.Sethostname([]byte(container.uuid)); err != nil {
 		return err
 	}
 
