@@ -139,10 +139,17 @@ func child() error {
 	print_running_as()
 
 	readPipe := os.NewFile(3, "read-pipe")
-	Info.Println(readPipe)
+
+	var jsonContainer []byte
+
+	if err := json.NewDecoder(readPipe).Decode(&jsonContainer); err != nil {
+		return err
+	}
 
 	var container Container
-	json.NewDecoder(readPipe).Decode(&container)
+	if err := json.Unmarshal(jsonContainer, &container); err != nil {
+		return err
+	}
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
@@ -225,7 +232,13 @@ func parent() error {
 
 	cmd.ExtraFiles = []*os.File{childReader}
 
-	if err := json.NewEncoder(parentWriter).Encode(container); err != nil {
+	jsonContainer, err := json.Marshal(container)
+
+	if err != nil {
+		return err
+	}
+
+	if err := json.NewEncoder(parentWriter).Encode(jsonContainer); err != nil {
 		return err
 	}
 
