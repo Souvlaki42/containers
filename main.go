@@ -139,7 +139,7 @@ func child() error {
 	print_running_as()
 
 	readPipe := os.NewFile(3, "read-pipe")
-	os.NewFile(4, "write-pipe")
+	Info.Println(readPipe)
 
 	var container Container
 	json.NewDecoder(readPipe).Decode(&container)
@@ -184,11 +184,6 @@ func child() error {
 func parent() error {
 	print_running_as()
 
-	_, childWriter, err := os.Pipe()
-	if err != nil {
-		return err
-	}
-
 	childReader, parentWriter, err := os.Pipe()
 	if err != nil {
 		return err
@@ -228,7 +223,15 @@ func parent() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	cmd.ExtraFiles = []*os.File{childWriter, childReader}
+	cmd.ExtraFiles = []*os.File{childReader}
+
+	if err := json.NewEncoder(parentWriter).Encode(container); err != nil {
+		return err
+	}
+
+	if err := parentWriter.Close(); err != nil {
+		return err
+	}
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags:   syscall.CLONE_NEWUSER | syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
@@ -243,14 +246,6 @@ func parent() error {
 			HostID:      os.Getgid(),
 			Size:        1,
 		}},
-	}
-
-	if err := json.NewEncoder(parentWriter).Encode(container); err != nil {
-		return err
-	}
-
-	if err := parentWriter.Close(); err != nil {
-		return err
 	}
 
 	if err := cmd.Run(); err != nil {
