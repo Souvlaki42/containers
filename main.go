@@ -22,19 +22,19 @@ var (
 )
 
 type CGLimit struct {
-	Memory    uint64 // in bytes
-	Proc      int
-	CpuPeriod int // in microseconds
-	CpuQuota  int
+	Memory    uint64 `json:"memory"` // in bytes
+	ProcsNum  int    `json:"procs_num"`
+	CpuPeriod int    `json:"cpu_period"` // in microseconds
+	CpuQuota  int    `json:"cpu_quota"`
 }
 
 type Container struct {
-	HostUser    int
-	Uuid        string
-	CgroupRoot  string
-	CgroupStore string
-	CgroupPath  string
-	Limits      *CGLimit
+	HostUser    int      `json:"host_user"`
+	Uuid        string   `json:"uuid"`
+	CgroupRoot  string   `json:"cgroup_root"`
+	CgroupStore string   `json:"cgroup_store"`
+	CgroupPath  string   `json:"cgroup_path"`
+	Limits      *CGLimit `json:"limits"`
 }
 
 func (lim CGLimit) cpu_limit() string {
@@ -56,7 +56,7 @@ func create_container() (*Container, error) {
 
 	container.Limits = &CGLimit{
 		Memory:    info.Totalram * uint64(info.Unit),
-		Proc:      20,
+		ProcsNum:  20,
 		CpuPeriod: 100000,
 		CpuQuota:  0,
 	}
@@ -128,7 +128,7 @@ func setup_cgroup(container *Container) error {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(container.CgroupPath, "pids.max"), []byte(strconv.Itoa(container.Limits.Proc)), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(container.CgroupPath, "pids.max"), []byte(strconv.Itoa(container.Limits.ProcsNum)), 0644); err != nil {
 		return err
 	}
 
