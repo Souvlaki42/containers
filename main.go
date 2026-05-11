@@ -161,7 +161,15 @@ func child() error {
 		return err
 	}
 
-	if err := syscall.Chroot("./root-fs"); err != nil {
+	if err := syscall.Mount("root-fs", "root-fs", "", syscall.MS_BIND, ""); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll("root-fs/oldrootfs", 0700); err != nil {
+		return err
+	}
+
+	if err := syscall.PivotRoot("root-fs", "root-fs/oldrootfs"); err != nil {
 		return err
 	}
 
@@ -176,6 +184,7 @@ func child() error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
 
 	if err := cmd.Run(); err != nil {
 		return err
