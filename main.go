@@ -22,26 +22,26 @@ var (
 )
 
 type CGLimit struct {
-	memory     uint64 // in bytes
-	proc       int
-	cpu_period int // in microseconds
-	cpu_quota  int
+	Memory    uint64 // in bytes
+	Proc      int
+	CpuPeriod int // in microseconds
+	CpuQuota  int
 }
 
 type Container struct {
-	host_user    int
-	uuid         string
-	cgroup_root  string
-	cgroup_store string
-	cgroup_path  string
-	limits       *CGLimit
+	HostUser    int
+	Uuid        string
+	CgroupRoot  string
+	CgroupStore string
+	CgroupPath  string
+	Limits      *CGLimit
 }
 
 func (lim CGLimit) cpu_limit() string {
-	if lim.cpu_quota == 0 {
-		return fmt.Sprintf("max %d", lim.cpu_period)
+	if lim.CpuQuota == 0 {
+		return fmt.Sprintf("max %d", lim.CpuPeriod)
 	} else {
-		return fmt.Sprintf("%d %d", lim.cpu_quota, lim.cpu_period)
+		return fmt.Sprintf("%d %d", lim.CpuQuota, lim.CpuPeriod)
 	}
 }
 
@@ -54,28 +54,28 @@ func create_container() (*Container, error) {
 		return nil, err
 	}
 
-	container.limits = &CGLimit{
-		memory:     info.Totalram * uint64(info.Unit),
-		proc:       20,
-		cpu_period: 100000,
-		cpu_quota:  0,
+	container.Limits = &CGLimit{
+		Memory:    info.Totalram * uint64(info.Unit),
+		Proc:      20,
+		CpuPeriod: 100000,
+		CpuQuota:  0,
 	}
 
 	uuid, err := exec.Command("uuidgen").Output()
 	if err != nil {
 		return nil, err
 	}
-	container.uuid = strings.TrimSpace(string(uuid))
+	container.Uuid = strings.TrimSpace(string(uuid))
 
 	uid := os.Getuid()
-	container.host_user = uid
+	container.HostUser = uid
 
 	cgroup_root := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service", uid, uid)
-	container.cgroup_root = cgroup_root
+	container.CgroupRoot = cgroup_root
 
-	container.cgroup_store = filepath.Join(cgroup_root, "containers")
+	container.CgroupStore = filepath.Join(cgroup_root, "containers")
 
-	container.cgroup_path = filepath.Join(container.cgroup_store, container.uuid)
+	container.CgroupPath = filepath.Join(container.CgroupStore, container.Uuid)
 
 	return container, nil
 }
@@ -85,12 +85,12 @@ func print_running_as() {
 }
 
 func setup_cgroup(container *Container) error {
-	err := os.MkdirAll(container.cgroup_root, 0755)
+	err := os.MkdirAll(container.CgroupRoot, 0755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	init_path := filepath.Join(container.cgroup_root, "init.scope")
+	init_path := filepath.Join(container.CgroupRoot, "init.scope")
 
 	err = os.MkdirAll(init_path, 0755)
 	if err != nil && !os.IsExist(err) {
@@ -101,34 +101,34 @@ func setup_cgroup(container *Container) error {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(container.cgroup_root, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(container.CgroupRoot, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
 		return err
 	}
 
-	err = os.MkdirAll(container.cgroup_store, 0755)
+	err = os.MkdirAll(container.CgroupStore, 0755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(container.cgroup_store, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(container.CgroupStore, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
 		return err
 	}
 
-	err = os.MkdirAll(container.cgroup_path, 0755)
+	err = os.MkdirAll(container.CgroupPath, 0755)
 
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(container.cgroup_path, "memory.max"), []byte(strconv.FormatUint(container.limits.memory, 10)), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(container.CgroupPath, "memory.max"), []byte(strconv.FormatUint(container.Limits.Memory, 10)), 0644); err != nil {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(container.cgroup_path, "cpu.max"), []byte(container.limits.cpu_limit()), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(container.CgroupPath, "cpu.max"), []byte(container.Limits.cpu_limit()), 0644); err != nil {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(container.cgroup_path, "pids.max"), []byte(strconv.Itoa(container.limits.proc)), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(container.CgroupPath, "pids.max"), []byte(strconv.Itoa(container.Limits.Proc)), 0644); err != nil {
 		return err
 	}
 
@@ -146,11 +146,11 @@ func child() error {
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
-	if err := os.WriteFile(filepath.Join(container.cgroup_path, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(container.CgroupPath, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
 		return err
 	}
 
-	if err := syscall.Sethostname([]byte(container.uuid)); err != nil {
+	if err := syscall.Sethostname([]byte(container.Uuid)); err != nil {
 		return err
 	}
 
@@ -197,12 +197,12 @@ func parent() error {
 	defer func() {
 		// FIX: replace with proper inotify polling and cleanup
 		// Original used cgroup v1's `notify-on-release`
-		if err = os.Remove(container.cgroup_path); err != nil {
+		if err = os.Remove(container.CgroupPath); err != nil {
 			Error.Println(err)
 			os.Exit(1)
 		}
 
-		if err = os.Remove(container.cgroup_store); err != nil {
+		if err = os.Remove(container.CgroupStore); err != nil {
 			Error.Println(err)
 			os.Exit(1)
 		}
@@ -238,7 +238,7 @@ func parent() error {
 		Unshareflags: syscall.CLONE_NEWNS,
 		UidMappings: []syscall.SysProcIDMap{{
 			ContainerID: 0,
-			HostID:      container.host_user,
+			HostID:      container.HostUser,
 			Size:        1,
 		}},
 		GidMappings: []syscall.SysProcIDMap{{
