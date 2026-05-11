@@ -260,13 +260,21 @@ func parent() error {
 	return nil
 }
 
+func print_usage() {
+	Error.Printf("Usage: %s run <image> <cmd> <...params>\n", os.Args[0])
+	Error.Println("Note: Please ignore subcommand `child`. It is intended for internal use only.")
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		Error.Printf("Usage: %s run <image> <cmd> <...params>\n", os.Args[0])
+		print_usage()
 		os.Exit(1)
 	}
 
 	switch os.Args[1] {
+	case "--help":
+		print_usage()
+		os.Exit(1)
 	case "run":
 		if err := parent(); err != nil {
 			Error.Println(err)
