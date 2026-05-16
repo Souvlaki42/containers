@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -36,7 +37,9 @@ type Paths struct {
 
 type Container struct {
 	HostUser int      `json:"host_user"`
-	Uuid     string   `json:"uuid"`
+	Name     string   `json:"name"`
+	Image    string   `json:"image"`
+	Init     string   `json:"init"`
 	Limits   *CGLimit `json:"limits"`
 	Paths    *Paths   `json:"paths"`
 }
@@ -65,11 +68,22 @@ func create_container() (Container, error) {
 		CpuQuota:  0,
 	}
 
-	uuid, err := exec.Command("uuidgen").Output()
-	if err != nil {
-		return container, err
+	name := flag.String("n", "", "Specifies the name of a container. UUID v4 is used as a fallback.")
+	image := flag.String("i", "ubuntu", "Specifies the image the container will run upon. Ubuntu is used as a fallback.")
+	init := flag.String("c", "/bin/bash", "Specifies the executable the container will start with. /bin/bash is used as a fallback.")
+
+	if *name == "" {
+		uuid, err := exec.Command("uuidgen").Output()
+		if err != nil {
+			return container, err
+		}
+		*name = string(uuid)
 	}
-	container.Uuid = strings.TrimSpace(string(uuid))
+	container.Name = strings.TrimSpace(*name)
+
+	container.Image = *image
+
+	container.Init = *init
 
 	uid := os.Getuid()
 	container.HostUser = uid
@@ -164,7 +178,7 @@ func child() error {
 		return err
 	}
 
-	if err := syscall.Sethostname([]byte(container.Uuid)); err != nil {
+	if err := syscall.Sethostname([]byte(container.Name)); err != nil {
 		return err
 	}
 
