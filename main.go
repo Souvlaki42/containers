@@ -118,6 +118,65 @@ func print_running_as() {
 	Info.Printf("Running %s as user %d on group %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getgid(), os.Getpid())
 }
 
+func setup_image(container Container) error {
+	image_path := filepath.Join(container.Paths.ContainerRoot, "/images/", container.Image)
+
+	err := os.MkdirAll(image_path, 0o755)
+	image_exists := errors.Is(err, fs.ErrExist)
+
+	if err != nil && !image_exists {
+		return err
+	}
+
+	if image_exists && strings.Contains(container.Image, ":latest") {
+		if err := os.Remove(image_path); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(image_path, 0o755); err != nil {
+			return nil
+		}
+
+		image_exists = false
+	}
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+
+	if !image_exists {
+		crane := exec.Command("crane", "export", container.Image)
+		tar := exec.Command("tar", "x", container.Paths.ContainerPath)
+
+		crane.Stdout = writer
+		tar.Stdin = reader
+
+		if err = crane.Start(); err != nil {
+			return err
+		}
+
+		if err = tar.Start(); err != nil {
+			return err
+		}
+
+		if err = crane.Wait(); err != nil {
+			return err
+		}
+
+		if err = writer.Close(); err != nil {
+			return err
+		}
+
+		if err = tar.Wait(); err != nil {
+			return err
+		}
+	}
+
+	err = os.CopyFS(container.Paths.ContainerPath, os.DirFS(image_path))
+
+	return err
+}
+
 func setup_cgroup(container Container) error {
 	err := os.MkdirAll(container.Paths.CgroupRoot, 0o755)
 	if err != nil && !errors.Is(err, fs.ErrExist) {
