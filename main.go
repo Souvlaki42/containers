@@ -33,7 +33,6 @@ type CGLimit struct {
 
 type Paths struct {
 	CgroupRoot    string `json:"cgroup_root"`
-	CgroupStore   string `json:"cgroup_store"`
 	CgroupPath    string `json:"cgroup_path"`
 	ContainerRoot string `json:"container_root"`
 	ContainerPath string `json:"container_path"`
@@ -101,9 +100,7 @@ func create_container() (Container, error) {
 
 	paths.CgroupRoot = fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service", uid, uid)
 
-	paths.CgroupStore = filepath.Join(paths.CgroupRoot, "containers")
-
-	paths.CgroupPath = filepath.Join(paths.CgroupStore, container.Name)
+	paths.CgroupPath = filepath.Join(paths.CgroupRoot, "containers", container.Name)
 
 	paths.ContainerRoot = filepath.Join(os.Getenv("HOME"), ".containers")
 
@@ -198,12 +195,14 @@ func setup_cgroup(container Container) error {
 		return err
 	}
 
-	err = os.MkdirAll(container.Paths.CgroupStore, 0o755)
+	cgroup_store := filepath.Join(container.Paths.CgroupRoot, "containers")
+
+	err = os.MkdirAll(cgroup_store, 0o755)
 	if err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(container.Paths.CgroupStore, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroup_store, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0o644); err != nil {
 		return err
 	}
 
@@ -306,17 +305,7 @@ func parent() error {
 	defer func() {
 		// FIX: replace with proper inotify polling and cleanup
 		// Original used cgroup v1's `notify-on-release`
-		if err = os.Remove(container.Paths.CgroupPath); err != nil {
-			Error.Println(err)
-			os.Exit(1)
-		}
-
-		if err = os.Remove(container.Paths.CgroupStore); err != nil {
-			Error.Println(err)
-			os.Exit(1)
-		}
-
-		if err != nil {
+		if err := os.Remove(container.Paths.CgroupPath); err != nil {
 			Error.Println(err)
 			os.Exit(1)
 		}
