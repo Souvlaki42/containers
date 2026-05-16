@@ -35,6 +35,15 @@ Then, run the thing with:
 go run main.go run -i ubuntu -c /bin/bash
 ```
 
+## Uninstallation
+
+Delete the following stuff:
+
+```bash
+rm "$HOME/go/bin/containers" # if it exists and that's your $GOPATH
+rm -rf "$HOME/.containers"
+```
+
 ## TODO
 
 - [ ] Implement this new API.
