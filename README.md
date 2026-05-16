@@ -4,29 +4,44 @@ A simple container runtime written for me to finally understand the inner workin
 
 ## Prerequisites
 
+This tool is Linux specific by nature. Consider using [WSL2] or similars for Windows and MacOS.
+
 - Have [Go](https://go.dev/doc/install) installed
 - Have [Crane](https://github.com/google/go-containerregistry/tree/main/cmd/crane) installed
 
-## Usage
+## Installation
 
-Clone the repo using:
+First, make sure `$GOPATH/bin`, usually ~/go/bin is in your `$PATH`.
 
-```bash
-git clone https://github.com/Souvlaki42/go-containers.git
-```
-
-Then, setup the root filesystem by doing:
+Then download the binary:
 
 ```bash
-mkdir root-fs
-crane export ubuntu | sudo tar -xvC ./root-fs
+go install https://github.com/Souvlaki42/containers@latest
 ```
 
-Finally, run the thing with:
+Finally, run it with:
 
 ```bash
-go run main.go run /bin/bash
+containers run -i ubuntu -c /bin/bash
 ```
+
+## Development
+
+First, clone this repository somewhere.
+
+Then, run the thing with:
+
+```bash
+go run main.go run -i ubuntu -c /bin/bash
+```
+
+## TODO
+
+- [ ] Implement this new API.
+- [ ] Setup more filesystem stuff.
+- [ ] Setup a few extra namespaces.
+- [ ] Make it more secure.
+- [ ] Drop the dependency on crane.
 
 ## Inspirations
 
