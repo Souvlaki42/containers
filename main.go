@@ -30,9 +30,11 @@ type CGLimit struct {
 }
 
 type Paths struct {
-	CgroupRoot  string `json:"cgroup_root"`
-	CgroupStore string `json:"cgroup_store"`
-	CgroupPath  string `json:"cgroup_path"`
+	CgroupRoot    string `json:"cgroup_root"`
+	CgroupStore   string `json:"cgroup_store"`
+	CgroupPath    string `json:"cgroup_path"`
+	ContainerRoot string `json:"container_root"`
+	ContainerPath string `json:"container_path"`
 }
 
 type Container struct {
@@ -94,7 +96,11 @@ func create_container() (Container, error) {
 
 	paths.CgroupStore = filepath.Join(paths.CgroupRoot, "containers")
 
-	paths.CgroupPath = filepath.Join(paths.CgroupStore, container.Uuid)
+	paths.CgroupPath = filepath.Join(paths.CgroupStore, container.Name)
+
+	paths.ContainerRoot = filepath.Join(os.Getenv("HOME"), ".containers")
+
+	paths.ContainerPath = filepath.Join(paths.ContainerRoot, "/store/", container.Name)
 
 	container.Paths = &paths
 
