@@ -85,50 +85,50 @@ func print_running_as() {
 }
 
 func setup_cgroup(container *Container) error {
-	err := os.MkdirAll(container.CgroupRoot, 0755)
+	err := os.MkdirAll(container.CgroupRoot, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
 	init_path := filepath.Join(container.CgroupRoot, "init.scope")
 
-	err = os.MkdirAll(init_path, 0755)
+	err = os.MkdirAll(init_path, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(init_path, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(init_path, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0o644); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(container.CgroupRoot, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(container.CgroupRoot, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0o644); err != nil {
 		return err
 	}
 
-	err = os.MkdirAll(container.CgroupStore, 0755)
+	err = os.MkdirAll(container.CgroupStore, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(container.CgroupStore, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(container.CgroupStore, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0o644); err != nil {
 		return err
 	}
 
-	err = os.MkdirAll(container.CgroupPath, 0755)
+	err = os.MkdirAll(container.CgroupPath, 0o755)
 
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(container.CgroupPath, "memory.max"), []byte(strconv.FormatUint(container.Limits.Memory, 10)), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(container.CgroupPath, "memory.max"), []byte(strconv.FormatUint(container.Limits.Memory, 10)), 0o644); err != nil {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(container.CgroupPath, "cpu.max"), []byte(container.Limits.cpu_limit()), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(container.CgroupPath, "cpu.max"), []byte(container.Limits.cpu_limit()), 0o644); err != nil {
 		return err
 	}
 
-	if err = os.WriteFile(filepath.Join(container.CgroupPath, "pids.max"), []byte(strconv.Itoa(container.Limits.ProcsNum)), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(container.CgroupPath, "pids.max"), []byte(strconv.Itoa(container.Limits.ProcsNum)), 0o644); err != nil {
 		return err
 	}
 
@@ -153,7 +153,7 @@ func child() error {
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 
-	if err := os.WriteFile(filepath.Join(container.CgroupPath, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(container.CgroupPath, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0o644); err != nil {
 		return err
 	}
 
@@ -165,7 +165,7 @@ func child() error {
 		return err
 	}
 
-	if err := os.MkdirAll("root-fs/oldrootfs", 0700); err != nil {
+	if err := os.MkdirAll("root-fs/oldrootfs", 0o700); err != nil {
 		return err
 	}
 
@@ -242,7 +242,6 @@ func parent() error {
 	cmd.ExtraFiles = []*os.File{childReader}
 
 	jsonContainer, err := json.Marshal(container)
-
 	if err != nil {
 		return err
 	}
@@ -306,5 +305,4 @@ func main() {
 		Error.Printf("Unknown command: %s\n", os.Args[1])
 		os.Exit(2)
 	}
-
 }
