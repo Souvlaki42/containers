@@ -42,6 +42,7 @@ type Container struct {
 	Name     string   `json:"name"`
 	Image    string   `json:"image"`
 	Init     string   `json:"init"`
+	Args     []string `json:"args"`
 	Limits   *CGLimit `json:"limits"`
 	Paths    *Paths   `json:"paths"`
 }
@@ -74,6 +75,8 @@ func create_container() (Container, error) {
 	image := flag.String("i", "ubuntu", "Specifies the image the container will run upon. Ubuntu is used as a fallback.")
 	init := flag.String("c", "/bin/bash", "Specifies the executable the container will start with. /bin/bash is used as a fallback.")
 
+	flag.Parse()
+
 	if *name == "" {
 		uuid, err := exec.Command("uuidgen").Output()
 		if err != nil {
@@ -86,6 +89,8 @@ func create_container() (Container, error) {
 	container.Image = *image
 
 	container.Init = *init
+
+	container.Args = flag.Args()
 
 	uid := os.Getuid()
 	container.HostUser = uid
