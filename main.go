@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -118,14 +120,14 @@ func print_running_as() {
 
 func setup_cgroup(container Container) error {
 	err := os.MkdirAll(container.Paths.CgroupRoot, 0o755)
-	if err != nil && !os.IsExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
 
 	init_path := filepath.Join(container.Paths.CgroupRoot, "init.scope")
 
 	err = os.MkdirAll(init_path, 0o755)
-	if err != nil && !os.IsExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
 
@@ -138,7 +140,7 @@ func setup_cgroup(container Container) error {
 	}
 
 	err = os.MkdirAll(container.Paths.CgroupStore, 0o755)
-	if err != nil && !os.IsExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
 
@@ -148,7 +150,7 @@ func setup_cgroup(container Container) error {
 
 	err = os.MkdirAll(container.Paths.CgroupPath, 0o755)
 
-	if err != nil && !os.IsExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
 
