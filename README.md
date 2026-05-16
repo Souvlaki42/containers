@@ -1,6 +1,6 @@
-# Containers in Go
+# Containers
 
-This is a simple container runtime written in Go
+A simple container runtime written for me to finally understand the inner workings of containers.
 
 ## Prerequisites
 
