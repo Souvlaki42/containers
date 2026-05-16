@@ -243,7 +243,7 @@ func child() error {
 		return err
 	}
 
-	cmd := exec.Command(os.Args[2], os.Args[3:]...)
+	cmd := exec.Command(container.Init, container.Args...)
 
 	if err := os.WriteFile(filepath.Join(container.Paths.CgroupPath, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0o644); err != nil {
 		return err
@@ -253,7 +253,7 @@ func child() error {
 		return err
 	}
 
-	if err := syscall.Mount("root-fs", "root-fs", "", syscall.MS_BIND, ""); err != nil {
+	if err := syscall.Mount(container.Paths.ContainerPath, "root-fs", "", syscall.MS_BIND, ""); err != nil {
 		return err
 	}
 
@@ -309,9 +309,18 @@ func parent() error {
 			Error.Println(err)
 			os.Exit(1)
 		}
+
+		if err := os.Remove(container.Paths.ContainerPath); err != nil {
+			Error.Println(err)
+			os.Exit(1)
+		}
 	}()
 
 	if err := setup_cgroup(container); err != nil {
+		return err
+	}
+
+	if err := setup_image(container); err != nil {
 		return err
 	}
 
