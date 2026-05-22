@@ -112,7 +112,7 @@ func create_container() (*Container, error) {
 }
 
 func print_running_as() {
-	Info.Printf("Running %s as user %d on group %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getgid(), os.Getpid())
+	Info.Printf("Running %s as user %d on group %d in process %d...\n", strings.Join(os.Args[1:], " "), os.Getuid(), os.Getgid(), os.Getpid())
 }
 
 func setup_image(container *Container) error {
@@ -324,7 +324,8 @@ func parent() error {
 		return err
 	}
 
-	cmd := exec.Command("/proc/self/exe", append([]string{"child"}, os.Args[2:]...)...)
+	cmd := exec.Command("/proc/self/exe")
+	cmd.Args = slices.Concat([]string{"__CONTAINERS_INIT__"}, os.Args[1:])
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -368,24 +369,15 @@ func parent() error {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		flag.Usage()
-		os.Exit(1)
+	var process func() error
+	if os.Args[0] == "__CONTAINERS_INIT__" {
+		process = child
+	} else {
+		process = parent
 	}
 
-	switch os.Args[1] {
-	case "run":
-		if err := parent(); err != nil {
-			Error.Println(err)
-			os.Exit(1)
-		}
-	case "child":
-		if err := child(); err != nil {
-			Error.Println(err)
-			os.Exit(1)
-		}
-	default:
-		Error.Printf("Unknown command: %s\n", os.Args[1])
-		os.Exit(2)
+	if err := process(); err != nil {
+		Error.Println(err)
+		os.Exit(1)
 	}
 }
