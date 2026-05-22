@@ -79,6 +79,10 @@ func create_container() (*Container, error) {
 
 	flag.Parse()
 
+	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
+		return nil, err
+	}
+
 	if *name == "" {
 		uuid, err := exec.Command("uuidgen").Output()
 		if err != nil {
