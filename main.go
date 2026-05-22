@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -125,7 +126,7 @@ func setup_image(container *Container) error {
 		return err
 	}
 
-	if image_exists && strings.Contains(container.Image, ":latest") {
+	if image_exists || strings.Contains(container.Image, ":latest") {
 		if err := os.Remove(image_path); err != nil {
 			return err
 		}
