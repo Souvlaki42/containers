@@ -22,7 +22,7 @@ go install https://github.com/Souvlaki42/containers@latest
 Finally, run it with:
 
 ```bash
-containers run -i ubuntu -c /bin/bash
+containers -i ubuntu -c /bin/bash
 ```
 
 ## Development
@@ -32,7 +32,7 @@ First, clone this repository somewhere.
 Then, run the thing with:
 
 ```bash
-go run main.go run -i ubuntu -c /bin/bash
+go run main.go -i ubuntu -c /bin/bash
 ```
 
 ## Uninstallation
@@ -46,7 +46,7 @@ rm -rf "$HOME/.containers"
 
 ## TODO
 
-- [ ] Implement this new API.
+- [x] Implement this new API.
 - [ ] Setup more filesystem stuff.
 - [ ] Setup a few extra namespaces.
 - [ ] Make it more secure.
