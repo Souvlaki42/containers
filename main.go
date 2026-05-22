@@ -56,14 +56,14 @@ func (lim CGLimit) cpu_limit() string {
 	}
 }
 
-func create_container() (Container, error) {
-	container := Container{}
-
+func create_container() (*Container, error) {
 	var info syscall.Sysinfo_t
 
 	if err := syscall.Sysinfo(&info); err != nil {
-		return container, err
+		return nil, err
 	}
+
+	container := Container{}
 
 	container.Limits = &CGLimit{
 		Memory:    info.Totalram * uint64(info.Unit),
@@ -81,7 +81,7 @@ func create_container() (Container, error) {
 	if *name == "" {
 		uuid, err := exec.Command("uuidgen").Output()
 		if err != nil {
-			return container, err
+			return nil, err
 		}
 		*name = string(uuid)
 	}
@@ -108,14 +108,14 @@ func create_container() (Container, error) {
 
 	container.Paths = &paths
 
-	return container, nil
+	return &container, nil
 }
 
 func print_running_as() {
 	Info.Printf("Running %s as user %d on group %d in process %d...\n", strings.Join(os.Args[2:], " "), os.Getuid(), os.Getgid(), os.Getpid())
 }
 
-func setup_image(container Container) error {
+func setup_image(container *Container) error {
 	image_path := filepath.Join(container.Paths.ContainerRoot, "/images/", container.Image)
 
 	err := os.MkdirAll(image_path, 0o755)
@@ -174,7 +174,7 @@ func setup_image(container Container) error {
 	return err
 }
 
-func setup_cgroup(container Container) error {
+func setup_cgroup(container *Container) error {
 	err := os.MkdirAll(container.Paths.CgroupRoot, 0o755)
 	if err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
@@ -292,12 +292,12 @@ func child() error {
 func parent() error {
 	print_running_as()
 
-	childReader, parentWriter, err := os.Pipe()
+	container, err := create_container()
 	if err != nil {
 		return err
 	}
 
-	container, err := create_container()
+	childReader, parentWriter, err := os.Pipe()
 	if err != nil {
 		return err
 	}
