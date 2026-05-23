@@ -148,7 +148,7 @@ func setup_image(container *Container) error {
 
 	if !image_exists {
 		crane := exec.Command("crane", "export", container.Image)
-		tar := exec.Command("tar", "x", container.Paths.ContainerPath)
+		tar := exec.Command("tar", "-xC", image_path)
 
 		crane.Stdout = writer
 		tar.Stdin = reader
