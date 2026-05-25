@@ -42,13 +42,14 @@ type Paths struct {
 }
 
 type Container struct {
-	HostUser int      `json:"host_user"`
-	Name     string   `json:"name"`
-	Image    string   `json:"image"`
-	Init     string   `json:"init"`
-	Args     []string `json:"args"`
-	Limits   *CGLimit `json:"limits"`
-	Paths    *Paths   `json:"paths"`
+	HostUser int `json:"host_user"`
+	// TODO: GuestUser flag. Fails to set hostname if not root.
+	Name   string   `json:"name"`
+	Image  string   `json:"image"`
+	Init   string   `json:"init"`
+	Args   []string `json:"args"`
+	Limits *CGLimit `json:"limits"`
+	Paths  *Paths   `json:"paths"`
 }
 
 func (lim CGLimit) cpu_limit() string {
@@ -315,7 +316,7 @@ func parent() error {
 	}
 
 	defer func() {
-		// FIX: replace with proper inotify polling and cleanup
+		// TODO: replace with proper inotify polling and cleanup
 		// Original used cgroup v1's `notify-on-release`
 		if err := os.RemoveAll(container.Paths.CgroupPath); err != nil {
 			Error.Fatalln(fmt.Errorf("Failed to cleanup cgroup: %w", err))
