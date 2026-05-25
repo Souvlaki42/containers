@@ -75,9 +75,9 @@ func create_container() (*Container, error) {
 		CpuQuota:  0,
 	}
 
-	name := flag.String("n", "", "Specifies the name of a container. Random 16 character id is used as a fallback.")
-	image := flag.String("i", "ubuntu", "Specifies the image the container will run upon. Ubuntu is used as a fallback.")
-	init := flag.String("c", "/bin/bash", "Specifies the executable the container will start with. /bin/bash is used as a fallback.")
+	name := flag.String("n", "", "Specifies the name of a container. Defaults to random 16 character id.")
+	image := flag.String("i", "ubuntu", "Specifies the image the container will run upon.")
+	init := flag.String("c", "/bin/bash", "Specifies the executable the container will start with.")
 
 	flag.Parse()
 
