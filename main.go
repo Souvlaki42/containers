@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -73,7 +75,7 @@ func create_container() (*Container, error) {
 		CpuQuota:  0,
 	}
 
-	name := flag.String("n", "", "Specifies the name of a container. UUID v4 is used as a fallback.")
+	name := flag.String("n", "", "Specifies the name of a container. Random 16 character id is used as a fallback.")
 	image := flag.String("i", "ubuntu", "Specifies the image the container will run upon. Ubuntu is used as a fallback.")
 	init := flag.String("c", "/bin/bash", "Specifies the executable the container will start with. /bin/bash is used as a fallback.")
 
@@ -84,13 +86,13 @@ func create_container() (*Container, error) {
 	}
 
 	if *name == "" {
-		uuid, err := exec.Command("uuidgen").Output()
-		if err != nil {
-			return nil, fmt.Errorf("ID generation failed: %w", err)
+		b := make([]byte, 8) // ids are supposed to be 16 characters long
+		if _, err := rand.Read(b); err != nil {
+			return nil, fmt.Errorf("Failed to generate id: %w", err)
 		}
-		*name = string(uuid)
+		*name = hex.EncodeToString(b)
 	}
-	container.Name = strings.TrimSpace(*name)
+	container.Name = *name
 
 	container.Image = *image
 
