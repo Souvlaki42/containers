@@ -261,15 +261,17 @@ func child() error {
 		return fmt.Errorf("Failed to set hostname: %w", err)
 	}
 
-	if err := syscall.Mount(container.Paths.ContainerPath, "root-fs", "", syscall.MS_BIND, ""); err != nil {
+	if err := syscall.Mount(container.Paths.ContainerPath, container.Paths.ContainerPath, "", syscall.MS_BIND, ""); err != nil {
 		return fmt.Errorf("Failed to mount root: %w", err)
 	}
 
-	if err := os.MkdirAll("root-fs/oldrootfs", 0o700); err != nil {
+	oldrootfs := filepath.Join(container.Paths.ContainerPath, "oldrootfs")
+
+	if err := os.MkdirAll(oldrootfs, 0o700); err != nil {
 		return fmt.Errorf("Failed to make old root: %w", err)
 	}
 
-	if err := syscall.PivotRoot("root-fs", "root-fs/oldrootfs"); err != nil {
+	if err := syscall.PivotRoot(container.Paths.ContainerPath, oldrootfs); err != nil {
 		return fmt.Errorf("Failed to pivot root: %w", err)
 	}
 
