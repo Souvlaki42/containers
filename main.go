@@ -131,7 +131,7 @@ func setup_image(container *Container) error {
 	}
 
 	if image_exists || strings.Contains(container.Image, ":latest") {
-		if err := os.Remove(image_path); err != nil {
+		if err := os.RemoveAll(image_path); err != nil {
 			return fmt.Errorf("Failed to remove image path: %w", err)
 		}
 		if err := os.MkdirAll(image_path, 0o755); err != nil {
@@ -315,11 +315,11 @@ func parent() error {
 	defer func() {
 		// FIX: replace with proper inotify polling and cleanup
 		// Original used cgroup v1's `notify-on-release`
-		if err := os.Remove(container.Paths.CgroupPath); err != nil {
+		if err := os.RemoveAll(container.Paths.CgroupPath); err != nil {
 			Error.Fatalln(fmt.Errorf("Failed to cleanup cgroup: %w", err))
 		}
 
-		if err := os.Remove(container.Paths.ContainerPath); err != nil {
+		if err := os.RemoveAll(container.Paths.ContainerPath); err != nil {
 			Error.Fatalln(fmt.Errorf("Failed to cleanup container: %w", err))
 		}
 	}()
