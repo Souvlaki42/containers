@@ -61,7 +61,7 @@ func create_container() (*Container, error) {
 	var info syscall.Sysinfo_t
 
 	if err := syscall.Sysinfo(&info); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("System info retrieval failed: %w", err)
 	}
 
 	container := Container{}
@@ -80,13 +80,13 @@ func create_container() (*Container, error) {
 	flag.Parse()
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Flag parsing failed: %w", err)
 	}
 
 	if *name == "" {
 		uuid, err := exec.Command("uuidgen").Output()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ID generation failed: %w", err)
 		}
 		*name = string(uuid)
 	}
@@ -127,12 +127,12 @@ func setup_image(container *Container) error {
 	image_exists := errors.Is(err, fs.ErrExist)
 
 	if err != nil && !image_exists {
-		return err
+		return fmt.Errorf("Failed to create image path: %w", err)
 	}
 
 	if image_exists || strings.Contains(container.Image, ":latest") {
 		if err := os.Remove(image_path); err != nil {
-			return err
+			return fmt.Errorf("Failed to remove image path: %w", err)
 		}
 		if err := os.MkdirAll(image_path, 0o755); err != nil {
 			return nil
@@ -143,7 +143,7 @@ func setup_image(container *Container) error {
 
 	reader, writer, err := os.Pipe()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to created image pipe: %w", err)
 	}
 
 	if !image_exists {
@@ -154,79 +154,82 @@ func setup_image(container *Container) error {
 		tar.Stdin = reader
 
 		if err = crane.Start(); err != nil {
-			return err
+			return fmt.Errorf("Failed to start crane: %w", err)
 		}
 
 		if err = tar.Start(); err != nil {
-			return err
+			return fmt.Errorf("Failed to start tar: %w", err)
 		}
 
 		if err = crane.Wait(); err != nil {
-			return err
+			return fmt.Errorf("Failed to wait for crane: %w", err)
 		}
 
 		if err = writer.Close(); err != nil {
-			return err
+			return fmt.Errorf("Failed to close the image writer: %w", err)
 		}
 
 		if err = tar.Wait(); err != nil {
-			return err
+			return fmt.Errorf("Failed to wait for tar: %w", err)
 		}
 	}
 
 	err = os.CopyFS(container.Paths.ContainerPath, os.DirFS(image_path))
+	if err != nil {
+		return fmt.Errorf("Failed to copy the filesystem: %w", err)
+	}
 
-	return err
+	return nil
 }
 
 func setup_cgroup(container *Container) error {
 	err := os.MkdirAll(container.Paths.CgroupRoot, 0o755)
 	if err != nil && !errors.Is(err, fs.ErrExist) {
-		return err
+		return fmt.Errorf("Failed to create cgroup root: %w", err)
 	}
 
 	init_path := filepath.Join(container.Paths.CgroupRoot, "init.scope")
 
 	err = os.MkdirAll(init_path, 0o755)
 	if err != nil && !errors.Is(err, fs.ErrExist) {
-		return err
+		return fmt.Errorf("Failed to create init path: %w", err)
 	}
 
 	if err = os.WriteFile(filepath.Join(init_path, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0o644); err != nil {
-		return err
+		return fmt.Errorf("Failed to write init procs: %w", err)
 	}
 
 	if err := os.WriteFile(filepath.Join(container.Paths.CgroupRoot, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0o644); err != nil {
-		return err
+		return fmt.Errorf("Failed to write root subtree control: %w", err)
 	}
 
 	cgroup_store := filepath.Join(container.Paths.CgroupRoot, "containers")
 
 	err = os.MkdirAll(cgroup_store, 0o755)
 	if err != nil && !errors.Is(err, fs.ErrExist) {
-		return err
+		return fmt.Errorf("Failed to create cgroup store: %w", err)
 	}
 
 	if err := os.WriteFile(filepath.Join(cgroup_store, "cgroup.subtree_control"), []byte("+memory +pids +cpu"), 0o644); err != nil {
-		return err
+		return fmt.Errorf("Failed to write store subtree control: %w", err)
 	}
 
 	err = os.MkdirAll(container.Paths.CgroupPath, 0o755)
 
 	if err != nil && !errors.Is(err, fs.ErrExist) {
-		return err
+		return fmt.Errorf("Failed to create cgroup path: %w", err)
 	}
 
 	if err = os.WriteFile(filepath.Join(container.Paths.CgroupPath, "memory.max"), []byte(strconv.FormatUint(container.Limits.Memory, 10)), 0o644); err != nil {
-		return err
+		return fmt.Errorf("Failed to write memory limits: %w", err)
 	}
 
 	if err = os.WriteFile(filepath.Join(container.Paths.CgroupPath, "cpu.max"), []byte(container.Limits.cpu_limit()), 0o644); err != nil {
-		return err
+		return fmt.Errorf("Failed to write cpu limits: %w", err)
 	}
 
 	if err = os.WriteFile(filepath.Join(container.Paths.CgroupPath, "pids.max"), []byte(strconv.Itoa(container.Limits.ProcsNum)), 0o644); err != nil {
-		return err
+		return fmt.Errorf("Failed to write process limits: %w", err)
 	}
 
 	return nil
@@ -240,42 +243,42 @@ func child() error {
 	var jsonContainer []byte
 
 	if err := json.NewDecoder(readPipe).Decode(&jsonContainer); err != nil {
-		return err
+		return fmt.Errorf("Failed to decode context: %w", err)
 	}
 
 	var container Container
 	if err := json.Unmarshal(jsonContainer, &container); err != nil {
-		return err
+		return fmt.Errorf("Failed to parse context: %w", err)
 	}
 
 	cmd := exec.Command(container.Init, container.Args...)
 
 	if err := os.WriteFile(filepath.Join(container.Paths.CgroupPath, "cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0o644); err != nil {
-		return err
+		return fmt.Errorf("Failed to cgroup procs: %w", err)
 	}
 
 	if err := syscall.Sethostname([]byte(container.Name)); err != nil {
-		return err
+		return fmt.Errorf("Failed to set hostname: %w", err)
 	}
 
 	if err := syscall.Mount(container.Paths.ContainerPath, "root-fs", "", syscall.MS_BIND, ""); err != nil {
-		return err
+		return fmt.Errorf("Failed to mount root: %w", err)
 	}
 
 	if err := os.MkdirAll("root-fs/oldrootfs", 0o700); err != nil {
-		return err
+		return fmt.Errorf("Failed to make old root: %w", err)
 	}
 
 	if err := syscall.PivotRoot("root-fs", "root-fs/oldrootfs"); err != nil {
-		return err
+		return fmt.Errorf("Failed to pivot root: %w", err)
 	}
 
 	if err := syscall.Chdir("/"); err != nil {
-		return err
+		return fmt.Errorf("Failed to change dir: %w", err)
 	}
 
 	if err := syscall.Mount("proc", "proc", "proc", 0, ""); err != nil {
-		return err
+		return fmt.Errorf("Failed to mount proc: %w", err)
 	}
 
 	cmd.Stdin = os.Stdin
@@ -284,11 +287,11 @@ func child() error {
 	cmd.Env = os.Environ()
 
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("Failed to run init: %w", err)
 	}
 
 	if err := syscall.Unmount("/proc", 0); err != nil {
-		return err
+		return fmt.Errorf("Failed to unmount proc: %w", err)
 	}
 
 	return nil
@@ -299,34 +302,32 @@ func parent() error {
 
 	container, err := create_container()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to create context: %w", err)
 	}
 
 	childReader, parentWriter, err := os.Pipe()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to create ipc pipe: %w", err)
 	}
 
 	defer func() {
 		// FIX: replace with proper inotify polling and cleanup
 		// Original used cgroup v1's `notify-on-release`
 		if err := os.Remove(container.Paths.CgroupPath); err != nil {
-			Error.Println(err)
-			os.Exit(1)
+			Error.Fatalln(fmt.Errorf("Failed to cleanup cgroup: %w", err))
 		}
 
 		if err := os.Remove(container.Paths.ContainerPath); err != nil {
-			Error.Println(err)
-			os.Exit(1)
+			Error.Fatalln(fmt.Errorf("Failed to cleanup container: %w", err))
 		}
 	}()
 
 	if err := setup_cgroup(container); err != nil {
-		return err
+		return fmt.Errorf("Failed to setup cgroup: %w", err)
 	}
 
 	if err := setup_image(container); err != nil {
-		return err
+		return fmt.Errorf("Failed to setup image: %w", err)
 	}
 
 	cmd := exec.Command("/proc/self/exe")
@@ -340,15 +341,15 @@ func parent() error {
 
 	jsonContainer, err := json.Marshal(container)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to stringify context: %w", err)
 	}
 
 	if err := json.NewEncoder(parentWriter).Encode(jsonContainer); err != nil {
-		return err
+		return fmt.Errorf("Failed to encode context: %w", err)
 	}
 
 	if err := parentWriter.Close(); err != nil {
-		return err
+		return fmt.Errorf("Failed to close parent writer: %w", err)
 	}
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -367,7 +368,7 @@ func parent() error {
 	}
 
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("Failed to run child: %w", err)
 	}
 
 	return nil
@@ -382,7 +383,6 @@ func main() {
 	}
 
 	if err := process(); err != nil {
-		Error.Println(err)
-		os.Exit(1)
+		Error.Fatalln(err)
 	}
 }
