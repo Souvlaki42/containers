@@ -119,10 +119,6 @@ func create_container() (*Container, error) {
 	return &container, nil
 }
 
-func print_running_as() {
-	Info.Printf("Running %s as user %d on group %d in process %d...\n", strings.Join(os.Args[1:], " "), os.Getuid(), os.Getgid(), os.Getpid())
-}
-
 func setup_image(container *Container) error {
 	image_path := filepath.Join(container.Paths.ContainerRoot, "/images/", container.Image)
 
@@ -239,8 +235,6 @@ func setup_cgroup(container *Container) error {
 }
 
 func child() error {
-	print_running_as()
-
 	readPipe := os.NewFile(3, "read-pipe")
 
 	var jsonContainer []byte
@@ -303,8 +297,6 @@ func child() error {
 }
 
 func parent() error {
-	print_running_as()
-
 	container, err := create_container()
 	if err != nil {
 		return fmt.Errorf("Failed to create context: %w", err)
