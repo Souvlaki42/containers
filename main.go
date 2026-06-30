@@ -43,7 +43,7 @@ type Paths struct {
 
 type Container struct {
 	HostUser int `json:"host_user"`
-	// TODO: GuestUser flag. Fails to set hostname if not root.
+	// TASK(20260630-205507): GuestUser flag. Fails to set hostname if not root.
 	Name   string   `json:"name"`
 	Image  string   `json:"image"`
 	Init   string   `json:"init"`
@@ -87,7 +87,7 @@ func create_container() (*Container, error) {
 	}
 
 	if *name == "" {
-		b := make([]byte, 8) // ids are supposed to be 16 characters long
+		b := make([]byte, 8)
 		if _, err := rand.Read(b); err != nil {
 			return nil, fmt.Errorf("Failed to generate id: %w", err)
 		}
@@ -308,8 +308,7 @@ func parent() error {
 	}
 
 	defer func() {
-		// TODO: replace with proper inotify polling and cleanup
-		// Original used cgroup v1's `notify-on-release`
+		// TASK(20260630-205546): replace with proper inotify polling and cleanup
 		if err := os.RemoveAll(container.Paths.CgroupPath); err != nil {
 			Error.Fatalln(fmt.Errorf("Failed to cleanup cgroup: %w", err))
 		}
